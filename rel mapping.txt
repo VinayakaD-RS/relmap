@@ -1,0 +1,292 @@
+/**
+ ** Sample Data for LHS and RHS Grids
+  
+    this.leftSideData = [
+			{ id: "scoal11320231", displayName: "Left Tax Specific Accounts" },
+			{ id: "scoal11320452", displayName: "Left Tax Adjustments" },
+			{ id: "scoal11320893", displayName: "Left Key Tax Figures" },
+			{ id: "scoal11320934", displayName: "Left Advertising (including sponsorship costs)" },
+			{ id: "scoal11320675", displayName: "Left Capital gains" },
+			{ id: "scoal11320836", displayName: "Left Assets" },
+			{ id: "scoal11320677", displayName: "Left Current Assets" },
+			{ id: "scoal11320348", displayName: "Left Non-current Assets" }
+		]
+	this.rightSideData = [
+			{ id: "scoal113201", displayName: "Tax Specific Accounts", filePath: ['Tax Specific Accounts'], type: 'folder' },
+			{ id: "scoal214191", displayName: "Tax Adjustments", filePath: ['Tax Specific Accounts', 'Tax Adjustments'], type: 'folder' },
+			{ id: "scoal214296", displayName: "Key Tax Figures", filePath: ['Tax Specific Accounts', 'Key Tax Figures'], type: 'file' },
+			{ id: "scoal214296", displayName: "Key Tax Figures xx", filePath: ['Tax Specific Accounts', 'Key Tax Figures xx'], type: 'file' },
+			{ id: "scoal414194", displayName: "Advertising (including sponsorship costs)", filePath: ['Tax Specific Accounts', 'Tax Adjustments', 'Advertising (including sponsorship costs)'], type: 'file' },
+			{ id: "scoal414195", displayName: "Capital gains", filePath: ['Tax Specific Accounts', 'Tax Adjustments', 'Advertising (including sponsorship costs)', 'Capital gain'], type: 'file' },
+			{ id: "scoal14139", displayName: "Assets", filePath: ['Assets'], type: 'folder' },
+			{ id: "scoal24144", displayName: "Current Assets", filePath: ['Assets', 'Current Assets'], type: 'file' },
+			{ id: "scoal24148", displayName: "Non-current Assets", filePath: ['Assets', 'Non-current Assets'], type: 'file' },
+		];
+	this.leftSideColumns = [
+			{ field: 'id', rowDrag: true },
+			{ field: 'displayName' },
+		]
+	this.rightSideColumns = [
+			{ field: 'id' },
+			{ field: 'displayName' },
+		]
+
+ */
+
+import { LitElement, html, css } from 'lit';
+import { MixinManager } from '@riversandtechnologies/ui-platform-elements/lib/managers/mixin-manager.js';
+import { RufElement } from '@riversandtechnologies/ui-platform-elements/lib/base/ruf-element.js';
+import { AppBase } from '@riversandtechnologies/ui-platform-elements/lib/base/app-base.js';
+import ComponentConfigBase from '@riversandtechnologies/ui-platform-business-elements/lib/base/component-config-base.js';
+import { ObjectUtils } from '@riversandtechnologies/ui-platform-utils/lib/common/ObjectUtils.js';
+import { ContextUtils } from '@riversandtechnologies/ui-platform-utils/lib/mdm/ContextUtils.js';
+import '@riversandtechnologies/ui-platform-elements/lib/elements/pebble-spinner/pebble-spinner.js';
+import '@riversandtechnologies/ui-platform-business-elements/lib/elements/rock-layout/rock-titlebar/rock-titlebar.js';
+import { ComponentManager } from '@riversandtechnologies/ui-platform-elements/lib/managers/component-manager.js';
+import '@riversandtechnologies/ui-platform-elements/lib/elements/pebble-button/pebble-button.js';
+import { ToastManager } from '@riversandtechnologies/ui-platform-elements/lib/managers/toast-manager.js';
+import '@riversandtechnologies/ui-platform-elements/lib/elements/pebble-icon/pebble-icon.js';
+
+import './rock-drag-drop-grid.js';
+
+// Include Styles
+import { styles as sharedStyles } from '@riversandtechnologies/ui-platform-elements/lib/flow/core/base/shared.element.css.js';
+
+class RockRelationshipMappings extends MixinManager(LitElement).with(AppBase, RufElement, ComponentConfigBase) {
+    render() {
+        return html` <pebble-spinner .active=${this._loading}></pebble-spinner>
+            ${this._readyToRender
+                ? html`
+                ${
+                    !ObjectUtils.isEmpty(this.appConfig)
+                        ? html`
+                              <rock-titlebar
+                                  slot="rock-titlebar"
+                                  .icon=${this.appConfig.icon}
+                                  .mainTitle=${this.appConfig.title}
+                                  .nonMinimizable=${this.appConfig.nonMinimizable}
+                                  .nonClosable=${this.appConfig.nonClosable}
+                              >
+                              </rock-titlebar>
+                          `
+                        : html``
+                }
+                <div class="rel-drag-drop-wrapper" flow-layout="grid gap:md p:sm align:vertical-stretch">
+				<div class="leftContainer" flow-layout="col:5">
+					<rock-drag-drop-grid 
+						id="leftGrid"
+						style="height: 100%;width:100%;display:block"
+						.config=${this.config?.source}
+						configType="source"
+						.contextData=${this.contextData}
+						.options=${{}}>
+					</<rock-drag-drop-grid>
+				</div>
+                <div class="centerContainer" flow-layout="col:2 vertical gap:xs p:none m:none align:center">
+                <pebble-button
+                class="btn btn-outline-primary pebble-icon-dimension"
+                icon="pebble-icon:action-scope-take-selection"
+                title="Map relationship"
+                @tap=${this._moveToTarget}
+                ></pebble-button>
+                </div>
+				<div class="rightContainer" flow-layout="col:5 col:end-13">
+					<rock-drag-drop-grid 
+						id="rightGrid" 
+						style="height: 100%;width:100%;display:block"
+						.config=${this.config?.target}
+						configType="target"
+						.contextData=${this.contextData}
+						.dropZone=${true}
+						.options=${{}}>
+					</rock-drag-drop-grid>
+				</div>				
+			</div>`
+                : html``}`;
+    }
+
+    static get styles() {
+        const localStyle = css`
+            .rel-drag-drop-wrapper {
+                height: calc(100vh - 100px);
+            }
+            .pebble-icon-dimension {
+                --pebble-button-icon-height: 12px;
+                --pebble-button-icon-width: 12px;
+            }
+            .centerContainer {
+                vertical-align: middle;
+                text-align: center;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+        `;
+        return [sharedStyles, localStyle];
+    }
+
+    static get properties() {
+        return {
+            config: { type: Object },
+            contextData: { type: Object },
+            _readyToRender: { type: Boolean },
+            _loading: { type: Boolean },
+            appConfig: { type: Object }
+        };
+    }
+
+    constructor() {
+        super();
+        this.config = {};
+        this.contextData = {};
+        this._loading = true;
+        this._readyToRender = false;
+        this.appConfig = {};
+    }
+
+    async connectedCallback() {
+        super.connectedCallback();
+        let contextData = {};
+        //Build the context data if not available
+        if (ObjectUtils.isEmpty(this.contextData)) {
+            let userContext = {
+                roles: this.roles,
+                user: this.userId,
+                ownershipData: this.ownershipData,
+                tenant: this.tenantId,
+                defaultRole: this.defaultRole
+            };
+            contextData[ContextUtils.CONTEXT_TYPE_USER] = [userContext];
+            this.contextData = contextData;
+        } else {
+            contextData = ObjectUtils.cloneObject(this.contextData);
+        }
+
+        this.requestConfig('rock-relationship-mappings', contextData);
+    }
+
+    disconnectedCallback() {
+        super.disconnectedCallback();
+    }
+
+    async onConfigLoaded(componentConfig) {
+        if (componentConfig && componentConfig.config) {
+            this.config = componentConfig.config;
+        }
+        this._readyToRender = true;
+        this._loading = false;
+        await this.updateComplete;
+        this.setDropZone();
+    }
+
+    _moveToTarget() {
+        const sourceGrid = this.shadowRoot.querySelector('#leftGrid');
+        const targetGrid = this.shadowRoot.querySelector('#rightGrid');
+        const sourceSelectedItems = sourceGrid?.gridSelectionChanged()?.selectedItems;
+        const targetPath = targetGrid?.gridSelectionChanged()?.selectedItem?.filePath;
+
+        if(ObjectUtils.isEmpty(sourceSelectedItems) || ObjectUtils.isEmpty(targetPath)) {
+            ToastManager.showErrorToast("Please select atleast one source item and a target for mapping");
+            return;
+        }
+        const rockDnD = this.shadowRoot.querySelector('rock-drag-drop-grid');
+        rockDnD?.dndMultipleItems(sourceSelectedItems, targetPath, false, targetGrid);
+        // sourceSelectedItems.forEach(item => {
+        //     let sourceData = {};
+        //     sourceData.data = item;
+        //     if (!ObjectUtils.isEmpty(sourceData) && !ObjectUtils.isEmpty(targetPath))
+        //         this.onMoveClick(sourceData, targetPath, false, rightGrid);
+        // });
+    }
+
+    // onMoveClick(newParentPath, sourceData, issameGrid, dragDropGrid) {
+    //     let updatedRows = [];
+    //     this.moveToPath(newParentPath, sourceData, updatedRows, issameGrid);
+    //     const bedrockGrid = dragDropGrid.shadowRoot.querySelector('bedrock-grid');
+    //     const pebbleGrid = bedrockGrid.shadowRoot.querySelector('pebble-grid');
+    //     pebbleGrid._gridApi.applyTransaction({
+    //         add: updatedRows
+    //     });
+    //     let updatedNode;
+    //     let hierarchyIds = updatedRows.map(item => item.hierarchyId);
+    //     pebbleGrid._gridApi.forEachNode(node => {
+    //         if (hierarchyIds.includes(node.data.hierarchyId)) {
+    //             updatedNode = node;
+    //             if (!node.data.changedDragInfo) {
+    //                 node.data.changedDragInfo = {};
+    //             }
+    //             if (!node.data.changedDragInfo[node.hierarchyId]) {
+    //                 node.data.changedDragInfo[node.hierarchyId] = {};
+    //             }
+    //             node.data.changedDragInfo[node.hierarchyId].dragged = true;
+    //         }
+    //     });
+    //     pebbleGrid._gridApi.redrawRows({
+    //         force: true,
+    //         rowNodes: [updatedNode]
+    //     });
+    // }
+
+    // moveToPath(newParentPath, node, allUpdatedNodes, issameGrid) {
+    //     let oldPath = '';
+    //     let fileName = '';
+    //     if (node.data.filePath) {
+    //         oldPath = node.data.filePath;
+    //         fileName = oldPath[oldPath.length - 1];
+    //     } else {
+    //         oldPath = node.data['externalnamepath']?.split('>>');
+    //     }
+    //     //fileName = oldPath[oldPath.length - 1];
+    //     let data = ObjectUtils.cloneObject(node.data);
+    //     //let data = node.data;
+    //     let newChildPath = newParentPath.slice();
+    //     newChildPath.push(fileName || data['name']);
+    //     data.filePath = newChildPath;
+    //     node.data = data;
+    //     if (issameGrid) {
+    //         node.data.hierarchyId = node.hierarchyId = node.id;
+    //     } else {
+    //         node.data.hierarchyId = node.hierarchyId = UniqueIdUtils.getRandomId();
+    //     }
+    //     allUpdatedNodes.push(node.data);
+    //     if (node.childrenAfterGroup) {
+    //         node.childrenAfterGroup.forEach(childNode => {
+    //             this.moveToPath(newChildPath, childNode, allUpdatedNodes, issameGrid);
+    //         });
+    //     }
+    // }
+
+    _getTitleBarIcon() {
+        return ComponentManager.getTitleBarIcon();
+    }
+
+    /**
+     * Function to set the drop zone
+     */
+    setDropZone() {
+        let noOfGrids = this.shadowRoot.querySelectorAll('rock-drag-drop-grid');
+        let dropGrid;
+        let dragGrid;
+        noOfGrids.forEach(grid => {
+            if (grid.dropZone) {
+                dropGrid = grid;
+            } else {
+                dragGrid = grid;
+            }
+        });
+        if (dropGrid && dragGrid) {
+            let interval = setInterval(() => {
+                let dropZoneApi = dropGrid.getGridAPi();
+                let dragZoneApi = dragGrid.getGridAPi();
+
+                if (dropZoneApi && dragZoneApi) {
+                    let dropZone = dropZoneApi.getRowDropZoneParams();
+                    dragZoneApi.addRowDropZone(dropZone);
+                    clearInterval(interval);
+                }
+            }, 200);
+        }
+    }
+}
+
+customElements.define('rock-relationship-mappings', RockRelationshipMappings);
