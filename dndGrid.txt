@@ -12,11 +12,9 @@ import { EntityUtils } from '@riversandtechnologies/ui-platform-utils/lib/mdm/En
 import { AttributeUtils } from '@riversandtechnologies/ui-platform-utils/lib/mdm/AttributeUtils.js';
 import { UniqueIdUtils } from '@riversandtechnologies/ui-platform-utils/lib/common/UniqueIdUtils.js';
 // ui-platform-elements
-import '@riversandtechnologies/ui-platform-elements/lib/elements/pebble-textbox/pebble-textbox.js';
+import '@riversandtechnologies/ui-platform-elements/lib/elements/bedrock-lov/bedrock-lov.js';
 import '@riversandtechnologies/ui-platform-elements/lib/elements/bedrock-grid/bedrock-grid.js';
 import '@riversandtechnologies/ui-platform-elements/lib/elements/pebble-button/pebble-button.js';
-import '@riversandtechnologies/ui-platform-elements/lib/elements/bedrock-pubsub/bedrock-pubsub.js';
-import '@riversandtechnologies/ui-platform-elements/lib/elements/pebble-toggle-button/pebble-toggle-button.js';
 import { BedrockGridDataSource } from '@riversandtechnologies/ui-platform-elements/lib/base/BedrockGridDataSource.js';
 import { DialogManager } from '@riversandtechnologies/ui-platform-elements/lib/managers/dialog-manager.js';
 
@@ -29,14 +27,15 @@ import { EntityCompositeModelManager } from '@riversandtechnologies/ui-platform-
 import '@riversandtechnologies/ui-platform-business-elements/lib/elements/rock-attribute/rock-attribute.js';
 import '@riversandtechnologies/ui-platform-business-elements/lib/elements/rock-entity-type-model-lov/rock-entity-type-model-lov.js';
 import '@riversandtechnologies/ui-platform-elements/lib/elements/pebble-spinner/pebble-spinner.js';
+import '@riversandtechnologies/ui-platform-elements/lib/elements/bedrock-pubsub/bedrock-pubsub.js';
 
-import DataHelper from '@riversandtechnologies/ui-platform-business-elements/lib/helpers/DataHelper.js';
 import DataRequestHelper from '@riversandtechnologies/ui-platform-business-elements/lib/helpers/DataRequestHelper.js';
 import DataTransformHelper from '@riversandtechnologies/ui-platform-business-elements/lib/helpers/DataTransformHelper.js';
 import { EntityGridDataSource } from '@riversandtechnologies/ui-platform-business-elements/lib/managers/EntityGridDataSource.js';
 // Include Styles
 import { styles as sharedStyles } from '@riversandtechnologies/ui-platform-elements/lib/flow/core/base/shared.element.css.js';
 import { LoggerManager } from '@riversandtechnologies/ui-platform-elements/lib/managers/logger-manager.js';
+import RelMappingHelper from '../../helpers/RelMappingHelper.js';
 
 class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase, RufElement, AppBase) {
     render() {
@@ -45,10 +44,10 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
             <div class="base-grid-structure">
                 <div class="base-grid-structure-child-1">
                     <div flow-layout="grid cols:auto gap:md">
-                        <div>
-                            ${!ObjectUtils.isEmpty(this._isDomainLovPrepared)
-                                ? html` <bedrock-lov
-                                      id="domainDropdown"
+                        ${this.showDomainFilter && !ObjectUtils.isEmpty(this._isDomainLovPrepared)
+                            ? html`<div>
+                                  <bedrock-lov
+                                      id="${this.configType}_domainDropdown"
                                       .showActionButtons="${false}"
                                       .selectAll=${false}
                                       .multiSelect=${false}
@@ -60,13 +59,13 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
                                       .selectedItem=${this._selectedDomain}
                                       @selected-value-changed="${this._onDomainChange}"
                                       @tag-removed="${this._onDomainChange}"
-                                  ></bedrock-lov>`
-                                : html``}
-                        </div>
-                        <div>
-                            ${this._isSourceLovPrepared
-                                ? html` <bedrock-lov
-                                      id="sourceDropdown"
+                                  ></bedrock-lov>
+                              </div>`
+                            : html``}
+                        ${this.showSourceFilter && this._isSourceLovPrepared
+                            ? html`<div>
+                                  <bedrock-lov
+                                      id="${this.configType}_sourceDropdown"
                                       .showActionButtons="${false}"
                                       .selectAll=${false}
                                       .multiSelect=${false}
@@ -80,54 +79,64 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
                                       .selectedItem=${this._selectedSource}
                                       @selected-value-changed="${this._onSourceChange}"
                                       @tag-removed="${this._onSourceChange}"
-                                  ></bedrock-lov>`
-                                : html``}
-                        </div>
-                        ${this.config?.showRelationshipFilter
-                            ? html` <div>
-                                  ${this._isRelationshipLovPrepared
-                                      ? html` <bedrock-lov
-                                            id="relationshipDropdown"
-                                            .showActionButtons="${false}"
-                                            .selectAll=${false}
-                                            .multiSelect=${false}
-                                            .filterEnabled="${true}"
-                                            .items="${this._relationshipTypes}"
-                                            .noLabelFloat="${true}"
-                                            .noSubTitle="${true}"
-                                            .label="${this.localize('RelTxt')}"
-                                            .selectedItem=${this._selectedRelationship}
-                                            @selected-value-changed="${this._onRelationshipTypeChange}"
-                                            @tag-removed="${this._onRelationshipTypeChange}"
-                                        ></bedrock-lov>`
-                                      : html``}
+                                  ></bedrock-lov>
+                              </div>`
+                            : html``}
+                        ${this.showRelationshipFilter && this._isRelationshipLovPrepared
+                            ? html`<div>
+                                  <bedrock-lov
+                                      id="${this.configType}_relationshipDropdown"
+                                      .showActionButtons="${false}"
+                                      .selectAll=${false}
+                                      .multiSelect=${false}
+                                      .filterEnabled="${true}"
+                                      .items="${this._relationshipTypes}"
+                                      .noLabelFloat="${true}"
+                                      .noSubTitle="${true}"
+                                      .label="${this.localize('RelTxt')}"
+                                      .selectedItem=${this._selectedRelationship}
+                                      @selected-value-changed="${this._onRelationshipTypeChange}"
+                                      @tag-removed="${this._onRelationshipTypeChange}"
+                                  ></bedrock-lov>
                               </div>`
                             : html``}
                     </div>
-                    <div class="search-bar" flow-layout="m-t:sm horizontal wrap:none">
-                        <pebble-search-bar id="searchBar" placeholder="${this.localize('SeaTxt')} "></pebble-search-bar>
-                        <pebble-button
-                            id="searchButton"
-                            class="apply btn btn-success"
-                            button-text=${this.localize('SeaTxt')}
-                            noink=""
-                            elevation="2"
-                            @click=${this._onSearch}
-                        ></pebble-button>
+                    <div flow-layout="grid cols:auto gap:md">
+                        <div flow-layout="vertical m-t:sm" class="search_wrapper">
+                            <pebble-search-bar
+                                id="${this.configType}_searchBar"
+                                placeholder="${this.localize('SeaTxt')}"
+                                .isGlobal=${true}
+                            ></pebble-search-bar>
+                            <pebble-button
+                                class="resetSearch"
+                                icon="pebble-icon:reset"
+                                medium-text
+                                @tap="${this._onResetSearchClicked}"
+                                .buttonText="${this.localize('RSTxt')}"
+                            ></pebble-button>
+                        </div>
+                        ${this.showMappedFilter
+                            ? html` <div flow-layout="m-t:xs">
+                                  <bedrock-lov
+                                      id="${this.configType}_mappedFilterDropdown"
+                                      .showActionButtons="${false}"
+                                      .selectAll=${false}
+                                      .multiSelect=${false}
+                                      .filterEnabled="${false}"
+                                      .items="${this._mappedFilterItems}"
+                                      .noLabelFloat="${false}"
+                                      .noSubTitle="${true}"
+                                      .label=""
+                                      .selectedItem=${this._selectedMappedFilter}
+                                      @selected-value-changed="${this._onMappedFilterChange}"
+                                      @tag-removed="${this._onMappedFilterChange}"
+                                  ></bedrock-lov>
+                              </div>`
+                            : ``}
                     </div>
                 </div>
                 <div class="base-grid-structure-child-2 relative">
-                    ${this.config?.showMappedFilterExists
-                        ? html` <div class="showMapped_wrapper">
-                              <pebble-toggle-button
-                                  ?checked=${this._isShowMapped}
-                                  ?disabled="false"
-                                  .title=${this.localize('ShoMapTxt')}
-                                  @checked-changed=${this._onShowMappedChange}
-                                  >${this.localize('ShoMapTxt')}</pebble-toggle-button
-                              >
-                          </div>`
-                        : ``}
                     ${!ObjectUtils.isEmpty(this.config)
                         ? html` <bedrock-grid
                               id="${this.configType}_dragDropGrid"
@@ -160,38 +169,19 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
             .grid-wrapper {
                 border: 1px solid var(--flow-global-border-color);
                 height: 100%;
-            }
-            .leftContainer {
-                width: 40%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .rightContainer {
-                width: 60%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            pebble-button {
-                margin-top: 0px;
-            }
-            pebble-toggle-button {
-                --pebble-toggle-button-checked-bar-color: var(--success-color, #4caf50);
-                --pebble-toggle-button-checked-button-color: var(--success-color, #4caf50);
-                --pebble-toggle-button-checked-ink-color: var(--success-color, #4caf50);
-                --pebble-toggle-button-label-font-size: var(--flow-font-size-xsm);
-                --pebble-toggle-button-label-color: var(--flow-global-font-color);
+                margin-top: 0 !important;
             }
             .relative {
                 position: relative;
             }
-            .showMapped_wrapper {
-                position: absolute;
-                top: 15px;
-                font-weight: var(--flow-font-weight-regular);
-                left: 20px;
-                max-width: 30%;
+            .search_wrapper {
+                align-items: end;
+            }
+
+            pebble-button.resetSearch {
+                height: auto;
+                color: var(--flow-global-font-color);
+                --pebble-button-font-size: var(--flow-font-size-xs);
             }
             .ag-icon {
                 font-family: var(--ag-icon-font-family);
@@ -212,9 +202,12 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
     static get properties() {
         return {
             config: { type: Object },
-            contextData: { type: Object, attribute: false },
             configType: { type: String }, //source or target
+            contextData: { type: Object, attribute: false },
+            isGoverned: { type: Boolean },
             _loading: { type: Boolean },
+
+            //Grid properties
             _columns: { type: Array, attribute: false },
             rowSelection: { type: String },
             options: { type: Object, attribute: false },
@@ -230,21 +223,30 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
             resultRecordSize: { type: Number },
             currentRecordSize: { type: Number },
             scopeId: { type: String },
+            _dataSource: { type: Object },
+
+            actions: { type: Object },
+            globalActions: { type: Object },
 
             _isDomainLovPrepared: { type: Boolean },
             _domainList: { type: Array },
             _selectedDomain: { type: Object },
+            showDomainFilter: { type: Boolean },
 
             _isSourceLovPrepared: { type: Boolean },
             _sourceList: { type: Array },
             _selectedSource: { type: Object },
+            showSourceFilter: { type: Boolean },
 
             _relationshipTypes: { type: Array },
             _selectedRelationship: { type: Object },
             attributeModels: { type: Object },
             _isRelationshipLovPrepared: { type: Boolean },
+            showRelationshipFilter: { type: Boolean },
 
-            _isShowMapped: { type: Boolean },
+            _mappedFilterItems: { type: Array },
+            _selectedMappedFilter: { type: Object },
+            showMappedFilter: { type: Boolean },
 
             //Dirty check properties
             _isDirtyCheckHandled: { type: Boolean },
@@ -252,15 +254,20 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
             _previousSearchedQuery: { type: String },
             _previousSelectedDomain: { type: Object },
             _previousSelectedSource: { type: Object },
-            _previousSelectedRel: { type: Object }
+            _previousSelectedRel: { type: Object },
+            _previousSelectedMappedFilter: { type: Object },
+            mappedToRelName: { type: String },
+            allowMappingOnlyAtLeafNode: {type: Boolean}
         };
     }
 
     constructor() {
         super();
+
         this.config = {};
         this.configType = '';
         this.contextData = {};
+        this.isGoverned = false;
         this._loading = false;
 
         this._columns = [];
@@ -269,7 +276,7 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
         this._gridOptions = {};
         this._gridConfig = {};
         this._isGridDataEmpty = false;
-        this._gridInfo = '';
+        this._gridInfo = this.localize('NoResMsg');
         this.pageSize = 50;
         this.batchSize = 50;
         this._actionScope = {};
@@ -278,32 +285,67 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
         this.resultRecordSize = 0;
         this.currentRecordSize = 0;
         this.scopeId = '';
+        this._dataSource = {};
 
         this._isDomainLovPrepared = false;
         this._domainList = [];
         this._selectedDomain = {};
+        this.showDomainFilter = true;
 
         this._isSourceLovPrepared = false;
         this._sourceList = [];
         this._selectedSource = {};
+        this.showSourceFilter = true;
 
         this._relationshipTypes = [];
         this._selectedRelationship = {};
+        this.showRelationshipFilter = true;
 
         this.attributeModels = {};
         this._isRelationshipLovPrepared = false;
 
-        this._isShowMapped = false;
+        this._mappedFilterItems = [
+            {
+                id: 'all',
+                title: 'Show All',
+                value: 'Show All'
+            },
+            {
+                id: 'mapped',
+                title: 'Show Mapped',
+                value: 'Show Mapped'
+            },
+            {
+                id: 'unmapped',
+                title: 'Show UnMapped',
+                value: 'Show UnMapped'
+            }
+        ];
+        this._selectedMappedFilter = {};
+        this.showMappedFilter = true;
+
         this._isDirtyCheckHandled = false;
         this._dirtyCheckEventName = '';
         this._previousSearchedQuery = '';
         this._previousSelectedDomain = {};
         this._previousSelectedSource = {};
         this._previousSelectedRel = {};
+        this._previousSelectedMappedFilter = {};
+        this.mappedToRelName = 'ismappedto';
+        this.allowMappingOnlyAtLeafNode = true;
 
         this.actions = {
             'grid-toolbar-action-custom-toolbar-event': {
                 name: 'grid-toolbar-action-custom-toolbar-event'
+            },
+            'bedrock-grid-filter-changed': {
+                name: 'bedrock-grid-filter-changed'
+            }
+        };
+
+        this.globalActions = {
+            'rock-search': {
+                name: 'rock-search'
             }
         };
     }
@@ -314,44 +356,32 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
                 this._onToolbarEvent(detail);
                 break;
             }
+            case 'bedrock-grid-filter-changed': {
+                this._onSourceGridFilterChange(detail);
+                break;
+            }
+            case 'rock-search': {
+                this._onSearch(detail);
+                break;
+            }
         }
-    }
-
-    // _gridSelectionChanged(e){
-    //     if(e && e?.topics){
-    //         const grid = e.topics[0].split('_')[1];
-    //         const objectPath = e?.clonedDetail?.selectionInfo?.selectedItems[0];
-    //         if(grid === 'source'){
-    //             this._sourceData = objectPath;
-    //         }
-    //         if(grid === 'target'){
-    //             this._targetPath = objectPath?.filePath;
-    //         }
-    //     }
-
-    //     if(!ObjectUtils.isEmpty(this._sourceData) && !ObjectUtils.isEmpty(this._targetPath)){
-    //         this.onMoveClick(this._targetPath, this._sourceData, false);
-    //     }
-    // }
-
-    gridSelectionChanged() {
-        const bedrockGrid = this.shadowRoot.querySelector('bedrock-grid');
-        return bedrockGrid;
     }
 
     _onToolbarEvent(detail) {
         if (detail && detail.actionInfo) {
             switch (detail.actionInfo.name) {
                 case 'saveTargetRelMapping':
-                    this._onSaveGridData(detail);
+                    if (detail.scopeId == this.scopeId) {
+                        this._onSaveGridData(detail);
+                    }
                     break;
 
                 case 'refreshSourceRelMapping': {
-                    this._onRefreshSource(detail);
+                    this.onRefreshSource(detail);
                     break;
                 }
                 case 'refreshTargetRelMapping':
-                    this._onRefreshTarget(detail);
+                    this.onRefreshTarget(detail);
                     break;
                 default:
                     break;
@@ -363,11 +393,19 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
         super.connectedCallback();
         await this.updateComplete;
         this.scopeId = this.configType + '_dragDropGrid';
-        // this.aci.subscribeToTopics({
-        //     'rock-grid-selection-changed': {
-        //         topics: [this.scopeId]
-        //     }
-        // });
+        //We need governFlag only on save click which is in target grid hence adding this condition
+        if (this.configType == 'target') {
+            await this.getGovernFlag();
+        }
+    }
+    async getGovernFlag() {
+        let appConfigResponse = await RelMappingHelper.getConfig('relmappings_appconfig', 'appConfig');
+        if (appConfigResponse && appConfigResponse.response.status == 'success') {
+            let res = appConfigResponse.response;
+            if (ObjectUtils.isValidObjectPath(res, 'configObjects.0.data.jsonData')) {
+                this.isGoverned = res.configObjects[0].data.jsonData.isGoverned;
+            }
+        }
     }
 
     disconnectedCallback() {
@@ -386,19 +424,43 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
     }
 
     get domainLov() {
-        return this.shadowRoot.querySelector('#domainDropdown');
+        return this.shadowRoot.querySelector('#' + this.configType + '_domainDropdown');
     }
 
     get sourceLov() {
-        return this.shadowRoot.querySelector('#sourceDropdown');
+        return this.shadowRoot.querySelector('#' + this.configType + '_sourceDropdown');
     }
 
     get relationshipLov() {
-        return this.shadowRoot.querySelector('#relationshipDropdown');
+        return this.shadowRoot.querySelector('#' + this.configType + '_relationshipDropdown');
     }
 
     get searchBar() {
-        return this.shadowRoot.querySelector('#searchBar');
+        return this.shadowRoot.querySelector('#' + this.configType + '_searchBar');
+    }
+
+    get mappedFilterlov() {
+        return this.shadowRoot.querySelector('#' + this.configType + '_mappedFilterDropdown');
+    }
+
+    get targetToolbarRefreshIcon() {
+        return this.shadowRoot
+            .querySelector('#target_dragDropGrid')
+            ?.shadowRoot.querySelector('grid-toolbar-actions')
+            ?.shadowRoot.querySelector('pebble-toolbar')
+            ?.shadowRoot.querySelector('#refreshTargetRelMapping');
+    }
+
+    getSelectedDomain() {
+        return this._selectedDomain;
+    }
+
+    getSelectedSource() {
+        return this._selectedSource;
+    }
+
+    getSelectedRelationship() {
+        return this._selectedRelationship;
     }
 
     async firstUpdated() {
@@ -406,7 +468,22 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
         this._loading = true;
         //Initialize dropdown items
         if (!ObjectUtils.isEmpty(this.config)) {
-            this._isShowMapped = this.config.showMappedDefaultValue;
+            this.showDomainFilter = !ObjectUtils.isEmpty(this.config.showDomainFilter)
+                ? this.config.showDomainFilter
+                : this.showDomainFilter;
+            this.showSourceFilter = !ObjectUtils.isEmpty(this.config.showSourceFilter)
+                ? this.config.showSourceFilter
+                : this.showSourceFilter;
+            this.showRelationshipFilter = !ObjectUtils.isEmpty(this.config.showRelationshipFilter)
+                ? this.config.showRelationshipFilter
+                : this.showRelationshipFilter;
+            this.showMappedFilter = !ObjectUtils.isEmpty(this.config.showMappedFilter)
+                ? this.config.showMappedFilter
+                : this.showMappedFilter;
+
+            if (this.showMappedFilter && !ObjectUtils.isEmpty(this._mappedFilterItems)) {
+                this._setSelectedMappedFilter(this._mappedFilterItems[0]);
+            }
             this.pageSize = !ObjectUtils.isEmpty(this.config.pageSize) ? this.config.pageSize : this.pageSize;
             this.batchSize = !ObjectUtils.isEmpty(this.config.batchSize) ? this.config.batchSize : this.batchSize;
             this._configuredDomains = this.config.domains;
@@ -414,7 +491,7 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
             await this._prepareDomains(domainList, this.config.defaultDomain);
             let defaultSource = this.configType == 'source' ? this.config.defaultSource : this.config.defaultTarget;
             await this._prepareSources(defaultSource);
-            if (this.config.showRelationshipFilter) {
+            if (this.showRelationshipFilter) {
                 this._prepareRelationshipTypes(this.config.defaultRelationshipType);
             }
             this._treeTypeChanged();
@@ -494,6 +571,8 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
      * Function to populate the selected and _previousSelected domain (to be used in dirtycheck)
      */
     _setSelectedDomain(obj) {
+        this._selectedDomain = {};
+        this._previousSelectedDomain = {};
         if (!ObjectUtils.isEmpty(obj)) {
             this._selectedDomain = obj;
             this._previousSelectedDomain = this._createLovSelectedTemplateObj(obj);
@@ -508,7 +587,8 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
      */
     _createLovSelectedTemplateObj(obj) {
         let _lovSelObjTemplate = {};
-        if (!ObjectUtils.isEmpty(obj) && obj.title) {
+        if (!ObjectUtils.isEmpty(obj) && obj.title && obj.id) {
+            _lovSelObjTemplate.id = obj.id;
             _lovSelObjTemplate.item = obj;
             _lovSelObjTemplate.title = obj.title;
             _lovSelObjTemplate.tagValues = [
@@ -581,9 +661,6 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
 
         //Reset the tags if no source is selected
         if (this.sourceLov && ObjectUtils.isEmpty(this._selectedSource)) {
-            //TODO : Need to remove below 2 lines in future after the bedrock-lov PR on clearValues is merged
-            this.sourceLov._lovSelectedItem = Constants.NULL_VALUE;
-            this.sourceLov.selectedValue = Constants.NULL_VALUE;
             this.sourceLov.clearValues();
         }
         this._sourceList = sourceList;
@@ -595,6 +672,8 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
      * Function to populate the selected and _previousSelected source/target (to be used in dirtycheck)
      */
     _setSelectedSource(obj) {
+        this._selectedSource = {};
+        this._previousSelectedSource = {};
         if (!ObjectUtils.isEmpty(obj)) {
             this._selectedSource = obj;
             this._previousSelectedSource = this._createLovSelectedTemplateObj(obj);
@@ -613,9 +692,6 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
         this._selectedRelationship = {};
         //Reset the previous relationship lov selection
         if (this.relationshipLov) {
-            //TODO : Need to remove below 2 lines in future after the bedrock-lov PR on clearValues is merged
-            this.relationshipLov._lovSelectedItem = Constants.NULL_VALUE;
-            this.relationshipLov.selectedValue = Constants.NULL_VALUE;
             this.relationshipLov.clearValues();
         }
         let clonedContextData = ObjectUtils.cloneObject(this.contextData);
@@ -705,6 +781,7 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
      */
     _setSelectedRelationship(obj) {
         this._selectedRelationship = {};
+        this._previousSelectedRel = {};
         if (!ObjectUtils.isEmpty(obj)) {
             this._selectedRelationship = obj;
             this._previousSelectedRel = this._createLovSelectedTemplateObj(obj);
@@ -715,27 +792,32 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
     }
 
     /**
-     * Function to handle domain change
+     * Function to handle domain change from the dropdown
      */
     async _onDomainChange(e) {
-        if (!this._isDirtyCheckHandled) {
-            let isDirty = this._performDirtyCheck('domainChange');
-            if (isDirty) {
-                return;
-            }
-        }
-
         this._selectedDomain = {};
         if (e && e.detail) {
+            //_selectedDomain to always hold the current selection of the user
             this._selectedDomain = _.find(this._domainList, function (item) {
                 return item.title == e.detail;
             });
+        }
+
+        if (!this._isDirtyCheckHandled) {
+            let isDirty = await this.performDirtyCheck('domainChange');
+            if (isDirty) {
+                return;
+            }
         }
 
         //Reset the Source and Relationship LOV
         await this._prepareSources();
         await this._prepareRelationshipTypes();
 
+        //Reset the mapped filters
+        this.resetMappedFilters();
+
+        //The selected value will be updated, if dirty check is passed
         this._setSelectedDomain(this._selectedDomain);
 
         //Reload the grid
@@ -746,22 +828,26 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
      * Function to handle source/target change
      */
     async _onSourceChange(e) {
-        if (!this._isDirtyCheckHandled) {
-            let isDirty = this._performDirtyCheck('sourceChange');
-            if (isDirty) {
-                return;
-            }
-        }
-
         this._selectedSource = {};
         if (e && e.detail) {
+            //_selectedSource to always hold the current selection of the user
             this._selectedSource = _.find(this._sourceList, function (item) {
                 return item.title == e.detail;
             });
         }
 
+        if (!this._isDirtyCheckHandled) {
+            let isDirty = await this.performDirtyCheck('sourceChange');
+            if (isDirty) {
+                return;
+            }
+        }
+
         //Reset the Relationship LOV
         await this._prepareRelationshipTypes();
+
+        //Reset the mapped filters
+        this.resetMappedFilters();
 
         this._setSelectedSource(this._selectedSource);
 
@@ -772,23 +858,117 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
     /**
      * Function to handle relationship change
      */
-    _onRelationshipTypeChange(e) {
+    async _onRelationshipTypeChange(e) {
+        this._selectedRelationship = {};
+        if (e && e.detail) {
+            this._selectedRelationship = _.find(this._relationshipTypes, function (item) {
+                return item.title == e.detail;
+            });
+        }
+
         if (!this._isDirtyCheckHandled) {
-            let isDirty = this._performDirtyCheck('relationshipChange');
+            let isDirty = await this.performDirtyCheck('relationshipChange');
             if (isDirty) {
                 return;
             }
         }
 
-        if (e && e.detail) {
-            let _selectedRelationship = _.find(this._relationshipTypes, function (item) {
-                return item.title == e.detail;
-            });
-            this._setSelectedRelationship(_selectedRelationship);
-        }
+        this._setSelectedRelationship(this._selectedRelationship);
+
+        //Reset the mapped filters
+        this.resetMappedFilters();
 
         //Reload the grid
         this._onInitialLoad();
+    }
+
+    /**
+     * Function to handle showMapped dropdown selection change
+     */
+    async _onMappedFilterChange(e) {
+        this._selectedMappedFilter = {};
+        if (e && e.detail) {
+            this._selectedMappedFilter = _.find(this._mappedFilterItems, function (item) {
+                return item.title == e.detail;
+            });
+        }
+
+        //Dirty check on mapped filter
+        if (!this._isDirtyCheckHandled) {
+            let isDirty = await this.performDirtyCheck('mappedFilterChange');
+            if (isDirty) {
+                return;
+            }
+        }
+
+        this._setSelectedMappedFilter(this._selectedMappedFilter);
+        this._triggerMappedFilterChange();
+    }
+
+    /**
+     * Function to send an event to handle the mapped filter change
+     */
+    _triggerMappedFilterChange(isKeywordSearch) {
+        const mappedFilterChange = this.aci.createAction({
+            name: 'mapped-filter-change',
+            detail: {
+                configType: this.configType,
+                mappedFilterId: this._selectedMappedFilter?.id,
+                request: ObjectUtils.cloneObject(this._entityDataGetReq)
+            }
+        });
+
+        //Add the searchText, if searchBar is used with the mapped filters
+        if (isKeywordSearch && this.searchBar && ObjectUtils.isValidObjectPath(mappedFilterChange, 'action.detail')) {
+            mappedFilterChange.action.detail.searchText = this.searchBar.query;
+        }
+
+        this.aci.dispatch(mappedFilterChange);
+    }
+
+    /**
+     * Function to populate the selected and _previousSelected mappedFilter (to be used in dirtycheck)
+     */
+    _setSelectedMappedFilter(obj) {
+        this._selectedMappedFilter = {};
+        this._previousSelectedMappedFilter = {};
+        if (!ObjectUtils.isEmpty(obj)) {
+            this._selectedMappedFilter = obj;
+            this._previousSelectedMappedFilter = this._createLovSelectedTemplateObj(obj);
+            if (this.mappedFilterlov && !ObjectUtils.isEmpty(this.mappedFilterlov.tagValues)) {
+                this._previousSelectedMappedFilter.tagValues = this.mappedFilterlov.tagValues;
+            }
+        }
+    }
+
+    /**
+     * Function to send an event to reset showMapped dropdown selection to All for both the source and target grids
+     */
+    resetMappedFilters() {
+        const resetMappedFilters = this.aci.createAction({
+            name: 'reset-mapped-filters'
+        });
+        this.aci.dispatch(resetMappedFilters);
+    }
+
+    /**
+     * Function to call mapped filter change
+     */
+    async onMappedFilterChange() {
+        let e = { detail: '' };
+        e.detail = this._selectedMappedFilter?.title;
+        await this._onMappedFilterChange(e);
+    }
+
+    /**
+     * Function to reset showMapped dropdown selection to All
+     */
+    resetMappedFilter() {
+        if (this.isShowMappedSelected() && this.mappedFilterlov && !ObjectUtils.isEmpty(this._mappedFilterItems)) {
+            this.mappedFilterlov.clearValues();
+            this.mappedFilterlov.items = this._mappedFilterItems;
+            this._setSelectedMappedFilter(this._mappedFilterItems[0]);
+        }
     }
 
     /**
@@ -827,7 +1007,7 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
      * Function to update the grid's item config based on user selected context data
      */
     onConfigLoaded(componentConfig) {
-        if (componentConfig) {
+        if (componentConfig && componentConfig.config) {
             //Update the column names from source/target
             if (
                 ObjectUtils.isValidObjectPath(componentConfig, 'config.' + this.configType + '.gridConfig.itemConfig')
@@ -835,6 +1015,7 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
                 let itemConfig = componentConfig.config[this.configType].gridConfig.itemConfig;
                 if (this.config && itemConfig) {
                     this.config.gridConfig.itemConfig = itemConfig;
+                    this.allowMappingOnlyAtLeafNode = componentConfig.config[this.configType].gridConfig.allowMappingOnlyAtLeafNode;
                 }
             }
         }
@@ -870,6 +1051,16 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
                 this._gridOptions = _gridOptions;
             } else if (this.config.treeType == 'hierarchical') {
                 let hierarchicalOptions = {
+                    isRowSelectable: rowData => {
+                        if(this.allowMappingOnlyAtLeafNode)
+                            return rowData?.data?.isLeafNode & !rowData?.data?.isMapped
+                        return true;
+                    },
+                    rowDrag: rowData => {
+                        if(this.allowMappingOnlyAtLeafNode)
+                            return rowData?.data?.isLeafNode & !rowData?.data?.isMapped
+                        return true;
+                },
                     defaultColDef: {
                         flex: 1,
                         resizable: true
@@ -878,9 +1069,11 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
                     animateRows: true,
                     groupDefaultExpanded: -1,
                     getRowStyle: params => {
-                        if (params.node?.data?.changedDragInfo?.[params.node.hierarchyId]?.dragged) {
+                        if (params.node?.data?.changedDragInfo?.[params?.node?.data?.hierarchyId]?.dragged) {
                             return { background: '#eaf3fc' };
                         }
+                        if(params.node.data.isMapped)
+                            return { background: '#f2f4f8' };
                     },
                     getDataPath: data => {
                         return data.filePath;
@@ -1067,6 +1260,9 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
      */
     async _loadGrid() {
         let clonedContextData = this._getUserSelectedContextData();
+        if (ObjectUtils.isEmpty(clonedContextData[ContextUtils.CONTEXT_TYPE_ITEM])) {
+            clonedContextData[ContextUtils.CONTEXT_TYPE_ITEM] = [{}];
+        }
         if (ObjectUtils.isValidObjectPath(clonedContextData, ContextUtils.CONTEXT_TYPE_ITEM + '.0')) {
             let attributeNames = this._getAttributeNamesFromConfig();
             clonedContextData[ContextUtils.CONTEXT_TYPE_ITEM][0].attributeNames = attributeNames;
@@ -1078,8 +1274,16 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
                 this._showEmptyGrid();
                 return;
             }
-            this._setGridDataSource(this._columns);
+            await this._setGridDataSource(this._columns);
         }
+    }
+
+    /**
+     * Function to set the grid with given items
+     * Remove Datasource and make the grid render with clientside data
+     */
+    loadGridWithGivenItems(items) {
+        this.grid.items = items;
     }
 
     /**
@@ -1088,7 +1292,7 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
     _prepareEntityRequest(contextData) {
         if (!ObjectUtils.isEmpty(contextData)) {
             this._entityDataGetReq = DataRequestHelper.createEntityGetRequest(contextData);
-
+            this._entityDataGetReq.params.fields.relationships = ['_ALL'];
             if (!ObjectUtils.isEmpty(this._entityDataGetReq)) {
                 //Build the attributesCriterion for source/target dropdown
                 if (!ObjectUtils.isEmpty(this._selectedDomain)) {
@@ -1126,11 +1330,10 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
                 //Build the keywordCriterion for searchbar input
                 if (this.searchBar && !ObjectUtils.isEmpty(this.searchBar.query)) {
                     let searchQuery = this.searchBar.query;
-                    let searchCriteria = DataHelper.getSearchCriteria(searchQuery);
-                    let keywordsCriterion = {};
-                    keywordsCriterion.keywords = searchCriteria.keywords;
-                    keywordsCriterion.operator = '_AND';
-                    this._entityDataGetReq.params.query.filters.keywordsCriterion = keywordsCriterion;
+                    let keywordsCriterion = RelMappingHelper.buildKeywordsCriterion(searchQuery);
+                    if (!ObjectUtils.isEmpty(keywordsCriterion)) {
+                        this._entityDataGetReq.params.query.filters.keywordsCriterion = keywordsCriterion;
+                    }
                 }
             }
         }
@@ -1142,13 +1345,14 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
     async _setGridDataSource() {
         if (this.grid) {
             let responseFormatter = data => {
-                return this._getAttributeFormattedData(data);
+                return this.getAttributeFormattedData(data);
             };
 
-            let cb = () => {
+            //Needed for lazy loaded grid
+            /*let cb = () => {
                 this._updateGridInfo();
                 this.invalidateCache = false;
-            };
+            };*/
 
             let dataSourceParams = {
                 request: this._entityDataGetReq,
@@ -1158,13 +1362,13 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
                 dataIndex: this._dataIndex
             };
 
-            let _dataSource = new EntityGridDataSource(dataSourceParams);
+            this._dataSource = new EntityGridDataSource(dataSourceParams);
             let clonedContextData = this._getUserSelectedContextData();
             let requestHandler = async requestOptions => {
                 if (this.maxConfiguredCount) {
                     requestOptions.maxRecords = this.maxConfiguredCount;
                 }
-                let responseData = await _dataSource.requestHandler(
+                let responseData = await this._dataSource.requestHandler(
                     requestOptions,
                     this.attributeModels,
                     clonedContextData,
@@ -1180,6 +1384,8 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
                 }
             };
 
+            /*
+            //For making the source grid lazy loaded
             if (this.configType == 'source') {
                 //Fetching source grid data dynamically lazy loaded
                 this.grid.dataSource = new BedrockGridDataSource(
@@ -1189,19 +1395,18 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
                     this.maxConfiguredCount,
                     cb
                 );
-                this.isGridDataEmpty = false;
-            } else {
-                //Making the target client side model
-                let params = {
-                    startRow: 0,
-                    endRow: this.pageSize ? this.pageSize - 1 : this.pageSize,
-                    clientSideModel: true
-                };
+            }*/
+            //Making the grid client side model
+            let params = {
+                startRow: 0,
+                endRow: this.pageSize ? this.pageSize - 1 : this.pageSize,
+                clientSideModel: true
+            };
 
-                let bedrockGridData = new BedrockGridDataSource(requestHandler, responseFormatter);
-                let items = await bedrockGridData.getData(params);
-                let grid = this.shadowRoot.querySelector('bedrock-grid');
-                grid.items = items;
+            let bedrockGridData = new BedrockGridDataSource(requestHandler, responseFormatter);
+            let items = await bedrockGridData.getData(params);
+            if (this.grid) {
+                this.grid.items = items;
             }
         }
     }
@@ -1219,14 +1424,17 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
     /**
      * Function to format data
      */
-    async _getAttributeFormattedData(data) {
+    async getAttributeFormattedData(data) {
         let formattedEntities = [];
         let clonedContextData = this._getUserSelectedContextData();
         //let defaultAttributes = ['type', 'id'];
         //let thumbnailIdFound = false;
         if (data && data.content) {
-            this.resultRecordSize = data.resultRecordSize != undefined ? data.resultRecordSize : this.resultRecordSize;
-            //this.initSearchEntityIds = data.initSearchEntityIds ? data.initSearchEntityIds : [];
+            //The target grid is static and tree type, hence the total records count will be auto calculated
+            /*if (this.configType == 'source') {
+                this.resultRecordSize =
+                    data.resultRecordSize != undefined ? data.resultRecordSize : this.resultRecordSize;
+            }*/
             let entities;
             if (data.content.entities) {
                 entities = data.content.entities;
@@ -1255,26 +1463,33 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
                             }
                         }
                     }*/
-            } else {
-                this._showEmptyGrid();
             }
         }
 
-        return this.transformData(this._columns, formattedEntities);
+        formattedEntities = this.transformData(this._columns, formattedEntities);
+        this._isGridDataEmpty = false;
+        if (ObjectUtils.isEmpty(formattedEntities)) {
+            this._isGridDataEmpty = true;
+        }
+        return formattedEntities;
     }
 
     /**
      * Function to show empty grid
      */
     _showEmptyGrid() {
+        //Equating grid items to empty object instead of empty array to prevent the grid to loose dropzone
         if (this.grid) {
-            this.grid.items = [];
+            if (!ObjectUtils.isEmpty(this.grid.items)) {
+                this.grid.items = {};
+            }
+            //Needed if the grid data is lazy loaded
+            //this.grid.dataSource = {};
         }
-        this.grid.dataSource = {};
+
         this.resultRecordSize = 0;
         this.currentRecordSize = 0;
         this._isGridDataEmpty = true;
-        this._gridInfo = this.localize('NoResMsg');
         this._loading = false;
     }
 
@@ -1295,7 +1510,7 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
     /**
      * Function to transform data into drag drop grid format
      */
-    transformData(columns, entities) {
+    async transformData(columns, entities) {
         let data = [];
         let clonedContextData = this._getUserSelectedContextData();
         if (!ObjectUtils.isEmpty(columns)) {
@@ -1364,19 +1579,124 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
                             rowData['filePathInString'] = filePathInString;
                             rowData['filePath'] = filePath;
                             rowData['type'] = 'file';
+                            rowData.isMapped = false;
+                            rowData.isLeafNode = false;
+
+                            let mappedIds = RelMappingHelper.getMappedToRelIdsFromEntities([entity]);
+                            if (!ObjectUtils.isEmpty(mappedIds)) {
+                                // const processMappedRows = async () => {
+                                //     for (const id of mappedIds) {
+                                //         let obj = await this.getClassificationById(id);
+                                //         let mappedRow = [];
+                                //         if (obj) {
+                                //             mappedRow = this.createHierarchicalDataForMappedItems(
+                                //                 obj,
+                                //                 filePathInString
+                                //             );
+                                //             mappedRows.push(mappedRow);
+                                //         }
+                                //     }
+                                // };
+                                let mappedRows = await this.getMappedRows(mappedIds, rowData);
+                                data = [...data, ...mappedRows];
+                            }
                         }
                     }
                     data.push(rowData);
                 }
             }
         }
+        if(this.allowMappingOnlyAtLeafNode)
+            await this.enableCheckBoxesForLeafNodesOnly(data);
         this.originalData = ObjectUtils.cloneObject(data);
         return data;
     }
 
-    _onSearch() {
+    async getMappedRows(mappedIds, parentData){
+        let mappedRows = [];
+        for (const id of mappedIds) {
+            let obj = await this.getClassificationById(id);
+            let mappedRow = [];
+            if (obj) {
+                mappedRow = this.createHierarchicalDataForMappedItems(obj, parentData);
+                mappedRows.push(mappedRow);
+            }
+        }
+        return mappedRows;
+    }
+
+    createHierarchicalDataForMappedItems(mappedItem, parentData) {
+        let rowData = {};
+        let attributes = mappedItem?.data?.attributes;
+        rowData.id = mappedItem.id;
+        rowData.type = 'file';
+        rowData.typeExternalName = mappedItem.typeExternalName;
+        rowData.name = mappedItem.name;
+        rowData.identifier = attributes?.identifier?.values?.[0]?.value;
+        rowData.externalName = attributes?.externalName?.values?.[0]?.value;
+        rowData.rootexternalname = attributes?.rootexternalname?.values?.[0]?.value;
+        rowData.droppedToId = parentData.id;
+        rowData.droppedToRel = this.mappedToRelName;
+        rowData.droppedToPath = parentData.externalnamepath.split('>>');
+        rowData.droppedToExternalName = parentData.name;
+        let mappedPath = parentData.externalnamepath;
+        mappedPath += '>>';
+        mappedPath += rowData.externalName;
+        rowData.externalnamepath = mappedPath;
+        rowData.filePathInString = mappedPath;
+        rowData.filePath = mappedPath.split('>>');
+        rowData.isMapped = true;
+        return rowData;
+    }
+
+    filterPossibleLeafNodes(data) {
+        let possibleLeafNodes = [];
+        data.forEach(extRowData => {
+            if (extRowData?.rootexternalname && !extRowData?.isMapped) {
+                let isParent = false;
+                const externalName = extRowData?.externalName;
+                for (const intRowData of data) {
+                    let filePath = intRowData?.externalnamepath?.split('>>');
+                    // If at all the current node exists in another node's path, it should be a leaf node in that path too. Else it means the current node is a parent.
+                    if (filePath?.includes(externalName) && filePath.indexOf(externalName) !== filePath.length - 1) {
+                        isParent = true;
+                        break;
+                    }
+                }
+                !isParent && possibleLeafNodes.push(extRowData.id);
+            }
+        });
+
+        return possibleLeafNodes;
+    }
+
+    async enableCheckBoxesForLeafNodesOnly(data) {
+        let possibleLeafNodeIds = this.filterPossibleLeafNodes(data);
+        let filters = {};
+        if (!ObjectUtils.isEmpty(this._selectedDomain)) {
+            filters.typesCriterion = [this._selectedDomain?.manageModelName];
+            let relationshipCriterionObj = {
+                belongsto: {
+                    relTo: {
+                        ids: possibleLeafNodeIds
+                    }
+                }
+            };
+            filters.relationshipsCriterion = [relationshipCriterionObj];
+        }
+
+        const belongsToEntityIds = await RelMappingHelper.getBelongsToEntityIds(filters);
+
+        possibleLeafNodeIds = possibleLeafNodeIds?.filter(id => !belongsToEntityIds.has(id));
+        data.forEach(rowData => {
+            if (possibleLeafNodeIds.includes(rowData.id) && rowData?.rootexternalname && rowData?.type !== 'folder')
+                rowData.isLeafNode = true;
+        });
+    }
+
+    async _onSearch() {
         if (!this._isDirtyCheckHandled) {
-            let isDirty = this._performDirtyCheck('search');
+            let isDirty = await this.performDirtyCheck('search');
             if (isDirty) {
                 return;
             }
@@ -1386,55 +1706,85 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
             this._previousSearchedQuery = this.searchBar.query;
         }
 
-        this._loadGrid();
+        //Load grid Data based on search text
+        this.reloadGrid(true);
     }
 
     /**
-     * Function to refresh the target grid data (clientside data)
+     * Function to reset the search text
      */
-    _onRefreshTarget(detail) {
-        //Ignore unrelated events
-        if (detail && detail.scopeId != this.scopeId) return;
-
+    async _onResetSearchClicked() {
         if (!this._isDirtyCheckHandled) {
-            let isDirty = this._performDirtyCheck('refresh');
+            let isDirty = await this.performDirtyCheck('resetSearch');
             if (isDirty) {
                 return;
             }
         }
 
-        if (this.grid && this.configType == 'target') {
-            this.grid.items = ObjectUtils.cloneObject(this.originalData);
+        if (this.searchBar) {
+            this.searchBar.searchText = '';
+            this.searchBar.query = '';
         }
+
+        //Load grid Data based on search text
+        this.reloadGrid();
+    }
+
+    /**
+     * Function to refresh the target grid data (clientside data)
+     */
+    async onRefreshTarget(detail) {
+        //Ignore unrelated events
+        if (detail && detail.scopeId != this.scopeId) return;
+
+        this._clearNotificationBlinker();
+
+        if (!this._isDirtyCheckHandled) {
+            let isDirty = await this.performDirtyCheck('refresh');
+            if (isDirty) {
+                return;
+            }
+        }
+
+        this.reloadGrid();
     }
 
     /**
      * Function to refresh the source grid data
      */
-    _onRefreshSource(detail) {
+    onRefreshSource(detail) {
         //Ignore unrelated events
         if (detail && detail.scopeId != this.scopeId) return;
+        this.onRefreshTarget(detail);
+    }
 
-        if (this.grid) {
-            this.grid.reRenderGrid();
+    /**
+     * reload the grid with all the filter checks again
+     */
+    async reloadGrid(isKeywordSearch) {
+        if (this.isShowMappedSelected()) {
+            this._triggerMappedFilterChange(isKeywordSearch);
+        } else {
+            await this._loadGrid();
         }
     }
 
     /**
      * Function to save the updated grid data
      */
-    _onSaveGridData() {
-        //let changedData = this.getChangedTreeData();
-        //TODO: Code updates for Save
-        //console.log("Save Grid Data : " + JSON.stringify(changedData));
-    }
 
-    /**
-     * Function to handle showMapped toggle click
-     */
-    _onShowMappedChange(e) {
-        let toggleState = e.detail?.value;
-        this._isShowMapped = toggleState;
+    async _onSaveGridData() {
+        let changedData = this.getChangedTreeData();
+
+        let action = this.aci.createAction({
+            name: 'mapping-save-clicked',
+            detail: {
+                changedData: changedData,
+                isGoverned: this.isGoverned,
+                manageModelName: this._selectedDomain?.manageModelName
+            }
+        });
+        this.aci.dispatch(action);
     }
 
     /**
@@ -1442,25 +1792,56 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
      */
     getIsDirty() {
         let changedData = this.getChangedTreeData();
-        //TODO : Can be removed if undefined is not rendered in changedData
-        changedData = changedData.filter(function (item) {
-            return item !== undefined;
-        });
         return !ObjectUtils.isEmpty(changedData) ? true : false;
     }
 
+    isShowMappedSelected() {
+        return (
+            this.showMappedFilter &&
+            !ObjectUtils.isEmpty(this._selectedMappedFilter) &&
+            this._selectedMappedFilter.id != 'all'
+        );
+    }
     /**
      * Function to show dirtyCheck dialog
      */
-    _performDirtyCheck(eventName) {
+    async performDirtyCheck(eventName, isControlDirtyCheckDone, isControlDirty) {
+        if (
+            !isControlDirtyCheckDone &&
+            (eventName == 'domainChange' || eventName == 'sourceChange' || eventName == 'relationshipChange')
+        ) {
+            //Send an event to handle the mapped filter change
+            const controlDirtyCheck = this.aci.createAction({
+                name: 'control-dirty-check',
+                detail: {
+                    configType: this.configType,
+                    scopeId: this.scopeId,
+                    eventName: eventName
+                }
+            });
+            this.aci.dispatch(controlDirtyCheck);
+            return true;
+        }
+
         //Dirty check on target grid
+        let targetIsDirty = false;
         if (this.configType == 'target') {
-            let isDirty = this.getIsDirty();
-            if (isDirty) {
-                this._dirtyCheckEventName = eventName;
-                DialogManager.openConfirm(this, this.localize('DisChaWar'));
-            }
-            return isDirty;
+            targetIsDirty = this.getIsDirty();
+        }
+
+        if (isControlDirty || targetIsDirty) {
+            this._dirtyCheckEventName = eventName;
+            let msg = isControlDirty ? this.localize('ModSeaCriCnfTxt') : this.localize('DisChaWar');
+            DialogManager.openConfirm(this, msg);
+            return true;
+        }
+
+        if (isControlDirtyCheckDone && !isControlDirty && !targetIsDirty) {
+            //Continue the event
+            this._isDirtyCheckHandled = true;
+            this._dirtyCheckEventName = eventName;
+            await this._setControlsSelection();
+            this._isDirtyCheckHandled = false;
         }
 
         return false;
@@ -1469,50 +1850,14 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
     /**
      * Function to handle dirtyCheck confirmation
      */
-    confirmDialogHandler(confirmStatus) {
-        let e = { detail: '' };
+    async confirmDialogHandler(confirmStatus) {
         this._isDirtyCheckHandled = true;
         if (confirmStatus) {
-            if (this._dirtyCheckEventName == 'search') {
-                this._onSearch();
-            } else if (this._dirtyCheckEventName == 'refresh') {
-                this.configType == 'target' ? this._onRefreshTarget() : this._onRefreshSource();
-            } else if (this._dirtyCheckEventName == 'domainChange' && this.domainLov) {
-                e.detail = this.domainLov.selectedValue;
-                this._onDomainChange(e);
-            } else if (this._dirtyCheckEventName == 'sourceChange' && this.sourceLov) {
-                e.detail = this.sourceLov.selectedValue;
-                this._onSourceChange(e);
-            } else if (this._dirtyCheckEventName == 'relationshipChange' && this.relationshipLov) {
-                e.detail = this.relationshipLov.selectedValue;
-                this._onRelationshipTypeChange(e);
-            }
+            //Reset the changed Data
+            this.onRemoveTargetGridChangedInfo();
+            await this._setControlsSelection();
         } else {
-            if (this._dirtyCheckEventName == 'search') {
-                this.searchBar.searchText = this._previousSearchedQuery;
-                this.searchBar.query = this._previousSearchedQuery;
-            } else if (
-                this._dirtyCheckEventName == 'domainChange' &&
-                !ObjectUtils.isEmpty(this._previousSelectedDomain)
-            ) {
-                this.domainLov._lovSelectedItem = this._previousSelectedDomain?.item;
-                this.domainLov.selectedValue = this._previousSelectedDomain?.title;
-                this.domainLov.tagValues = this._previousSelectedDomain?.tagValues;
-            } else if (
-                this._dirtyCheckEventName == 'sourceChange' &&
-                !ObjectUtils.isEmpty(this._previousSelectedSource)
-            ) {
-                this.sourceLov._lovSelectedItem = this._previousSelectedSource?.item;
-                this.sourceLov.selectedValue = this._previousSelectedSource?.title;
-                this.sourceLov.tagValues = this._previousSelectedSource?.tagValues;
-            } else if (
-                this._dirtyCheckEventName == 'relationshipChange' &&
-                !ObjectUtils.isEmpty(this._previousSelectedRel)
-            ) {
-                this.relationshipLov._lovSelectedItem = this._previousSelectedRel?.item;
-                this.relationshipLov.selectedValue = this._previousSelectedRel?.title;
-                this.relationshipLov.tagValues = this._previousSelectedRel?.tagValues;
-            }
+            this._revertControlsSelection();
         }
 
         //Reset the flag
@@ -1520,16 +1865,82 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
     }
 
     /**
+     * Function to set the controls(domain/source/target/rel/mappedfilter/search) with user selected options
+     */
+    async _setControlsSelection() {
+        let e = { detail: '' };
+        if (this._dirtyCheckEventName == 'search') {
+            this._onSearch();
+        } else if (this._dirtyCheckEventName == 'resetSearch') {
+            this._onResetSearchClicked();
+        } else if (this._dirtyCheckEventName == 'refresh') {
+            this.configType == 'target' ? this.onRefreshTarget() : this.onRefreshSource();
+        } else if (this._dirtyCheckEventName == 'domainChange') {
+            e.detail = this._selectedDomain?.title;
+            await this._onDomainChange(e);
+        } else if (this._dirtyCheckEventName == 'sourceChange') {
+            e.detail = this._selectedSource?.title;
+            await this._onSourceChange(e);
+        } else if (this._dirtyCheckEventName == 'relationshipChange') {
+            e.detail = this._selectedRelationship?.title;
+            await this._onRelationshipTypeChange(e);
+        } else if (this._dirtyCheckEventName == 'mappedFilterChange') {
+            e.detail = this._selectedMappedFilter?.title;
+            await this._onMappedFilterChange(e);
+        }
+    }
+
+    /**
+     * Function to revert the controls(domain/source/target/rel/mappedfilter/search) with previously selected user options
+     */
+    _revertControlsSelection() {
+        if (this._dirtyCheckEventName == 'search' || this._dirtyCheckEventName == 'resetSearch') {
+            this.searchBar.searchText = this._previousSearchedQuery;
+            this.searchBar.query = this._previousSearchedQuery;
+        } else if (
+            this._dirtyCheckEventName == 'domainChange' &&
+            this.domainLov &&
+            !ObjectUtils.isEmpty(this._previousSelectedDomain)
+        ) {
+            this._selectedDomain = this._previousSelectedDomain?.item;
+            this.domainLov.selectedValue = this._previousSelectedDomain?.title;
+            this.domainLov.selectedId = this._previousSelectedDomain?.id;
+            this.domainLov.selectedItem = this._previousSelectedDomain?.item;
+            this.domainLov.tagValues = this._previousSelectedDomain?.tagValues;
+        } else if (this._dirtyCheckEventName == 'sourceChange' && this.sourceLov) {
+            this._selectedSource = this._previousSelectedSource?.item;
+            this.sourceLov.selectedValue = this._previousSelectedSource?.title;
+            this.sourceLov.selectedId = this._previousSelectedSource?.id;
+            this.sourceLov.selectedItem = this._previousSelectedSource?.item;
+            this.sourceLov.tagValues = this._previousSelectedSource?.tagValues;
+        } else if (this._dirtyCheckEventName == 'relationshipChange' && this.relationshipLov) {
+            this._selectedRelationship = this._previousSelectedRel?.item;
+            this.relationshipLov.selectedValue = this._previousSelectedRel?.title;
+            this.relationshipLov.selectedId = this._previousSelectedRel?.id;
+            this.relationshipLov.selectedItem = this._previousSelectedRel?.item;
+            this.relationshipLov.tagValues = this._previousSelectedRel?.tagValues;
+        } else if (this._dirtyCheckEventName == 'mappedFilterChange' && this.mappedFilterlov) {
+            this._selectedMappedFilter = this._previousSelectedMappedFilter?.item;
+            this.mappedFilterlov.selectedValue = this._previousSelectedMappedFilter?.title;
+            this.mappedFilterlov.selectedId = this._previousSelectedMappedFilter?.id;
+            this.mappedFilterlov.selectedItem = this._previousSelectedMappedFilter?.item;
+            this.mappedFilterlov.tagValues = this._previousSelectedMappedFilter?.tagValues;
+        }
+    }
+    /**
      * Function to get the changed data
      */
     getChangedTreeData() {
         let rowModel = this.dragDropGrid._gridApi.getModel();
         let rootNode = rowModel.getRootNode();
-        let treeData = rootNode.allLeafChildren.map(function (node) {
-            if (node.data && node.data.changedDragInfo) {
-                return node.data;
-            }
-        });
+        let treeData = rootNode.allLeafChildren
+            .map(function (node) {
+                if (node.data && node.data.changedDragInfo) {
+                    return node.data;
+                }
+            })
+            .filter(item => item);
+
         return treeData;
     }
 
@@ -1546,27 +1957,21 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
     /**
      * Drag drop grid functions
      */
-    onRowDragEnd = event => {
+    onRowDragEnd = async event => {
         let overNode = event.overNode;
 
         if (!overNode) {
             return;
         }
+        if(overNode.data.isMapped || !overNode.data.isLeafNode)
+            return;
         //let allIds = [];
         //this.dragDropGrid._gridApi.forEachNode(node => allIds.push(node.data.id));
         let issameGrid = event.node.groupData;
+        let newParentPath = [];
+        let folderToDropInto = {};
 
-        // folder to drop into is where we are going to move the file/folder to
-        let folderToDropInto =
-            overNode.data.type === 'folder'
-                ? // if over a folder, we take the immediate row
-                  overNode
-                : // if over a file, we take the parent row (which will be a folder)
-                  overNode;
-
-        // take new parent path from parent, if data is missing, means it's the root node,
-        // which has no data.
-        let newParentPath = folderToDropInto.data ? folderToDropInto.data.filePath : [];
+        await this.updateSourceDataOnRowDragEnd(event, overNode, newParentPath, folderToDropInto);
         if (issameGrid) {
             // the data we want to move
             let movingData = event.node.data;
@@ -1587,17 +1992,18 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
                     update: updatedRows
                 });
                 let updatedNode;
-                let hierarchyIds = updatedRows.map(item => item.hierarchyId);
+                let hierarchyIds = updatedRows.map(item => item?.hierarchyId);
                 this.dragDropGrid._gridApi.forEachNode(node => {
                     if (hierarchyIds.includes(node.data.hierarchyId)) {
                         updatedNode = node;
                         if (!node.data.changedDragInfo) {
                             node.data.changedDragInfo = {};
                         }
-                        if (!node.data.changedDragInfo[node.hierarchyId]) {
-                            node.data.changedDragInfo[node.hierarchyId] = {};
+
+                        if (!node.data.changedDragInfo[node?.data?.hierarchyId]) {
+                            node.data.changedDragInfo[node?.data?.hierarchyId] = {};
                         }
-                        node.data.changedDragInfo[node.hierarchyId].dragged = true;
+                        node.data.changedDragInfo[node?.data?.hierarchyId].dragged = true;
                     }
                 });
                 this.dragDropGrid._gridApi.redrawRows({
@@ -1612,38 +2018,142 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
         } else {
             let updatedRows = [];
             this.moveToPath(newParentPath, event.node, updatedRows, issameGrid);
-            console.log('Updated Rows' + updatedRows);
-            this.dragDropGrid._gridApi.applyTransaction({
-                add: updatedRows
-            });
-            //let addedRowNode;
-            let updatedNode;
-            let hierarchyIds = updatedRows.map(item => item.hierarchyId);
-            this.dragDropGrid._gridApi.forEachNode(node => {
-                if (hierarchyIds.includes(node.data.hierarchyId)) {
-                    updatedNode = node;
-                    if (!node.data.changedDragInfo) {
-                        node.data.changedDragInfo = {};
-                    }
-                    if (!node.data.changedDragInfo[node.hierarchyId]) {
-                        node.data.changedDragInfo[node.hierarchyId] = {};
-                    }
-                    node.data.changedDragInfo[node.hierarchyId].dragged = true;
-                }
-            });
-            this.dragDropGrid._gridApi.redrawRows({
-                force: true,
-                rowNodes: [updatedNode]
-            });
+            this.updateTargetGridOnRowDragEnd(updatedRows, this.dragDropGrid);
         }
     };
+
+    /**
+     * Function to update the target related data in source data(event.node) on drag/move.
+     *
+     */
+    async updateSourceDataOnRowDragEnd(event, overNode, newParentPath, folderToDropInto) {
+        // folder to drop into is where we are going to move the file/folder to
+
+        // if over a folder, we take the immediate row
+        if (overNode.data.type === 'folder') {
+            Object.assign(folderToDropInto, overNode);
+        }
+        // if over a file, we take the parent row (which will be a folder)
+        else {
+            Object.assign(folderToDropInto, overNode);
+        }
+        if (folderToDropInto.data) {
+            Object.assign(newParentPath, folderToDropInto.data.filePath);
+        }
+        event.node.data.isMapped = true;
+        if (this._selectedDomain?.hasClassifications) {
+            //if type is present mean real data , else its path generated dummy data
+            if (overNode.data.identifier != undefined && overNode.data.name != undefined) {
+                event.node.data['droppedToId'] = overNode.data.identifier;
+                event.node.data['droppedToExternalName'] = overNode.data.name;
+                event.node.data['droppedToPath'] = overNode.data.filePathInString;
+            } else {
+                let name = newParentPath[newParentPath.length - 1];
+                event.node.data['droppedToExternalName'] = name;
+                let classification = await this.getClassificationByName(name);
+                if (!ObjectUtils.isEmpty(classification)) {
+                    event.node.data['droppedToId'] = classification.id;
+                    event.node.data['droppedToPath'] = classification.data.attributes.externalnamepath.values[0].value;
+                }
+            }
+            //To get path of source classiication which is dragged to some target
+            if (
+                ObjectUtils.isValidObjectPath(event, 'node.data.externalnamepath') == false ||
+                ObjectUtils.isValidObjectPath(event, 'node.data.externalName') == false
+            ) {
+                let classification = await this.getClassificationById(event.node.data.id);
+                event.node.data['externalnamepath'] = classification.data.attributes.externalnamepath.values[0].value;
+                event.node.data['externalName'] = classification.data.attributes.externalName.values[0].value;
+            }
+            event.node.data['droppedToRel'] = this.mappedToRelName;
+            event.node.data['droppedToType'] = this._selectedDomain?.manageModelName;
+        } else {
+            //TODO: This code is never tested , it will be tested once other domain setup is done
+            //for other domain we do not have identifier we recognise with id only
+            if (overNode.data.id != undefined) {
+                event.node.data['droppedToId'] = overNode.data.id;
+                event.node.data['droppedToExternalName'] = overNode.data.name;
+            }
+            event.node.data['droppedToRel'] = this.relationshipLov.selectedId;
+        }
+    }
+
+    /**
+     * Function to update the target grid once the source node has been mapped to a target node
+     *
+     */
+    updateTargetGridOnRowDragEnd(updatedRows, dragDropGrid) {
+        dragDropGrid._gridApi.applyTransaction({
+            add: updatedRows
+        });
+        //let addedRowNode;
+        let updatedNode;
+        let hierarchyIds = updatedRows.map(item => item?.hierarchyId);
+        dragDropGrid._gridApi.forEachNode(node => {
+            if (hierarchyIds.includes(node?.data?.hierarchyId)) {
+                updatedNode = node;
+                if (!node.data.changedDragInfo) {
+                    node.data.changedDragInfo = {};
+                }
+
+                if (!node.data.changedDragInfo[node?.data?.hierarchyId]) {
+                    node.data.changedDragInfo[node?.data?.hierarchyId] = {};
+                }
+                node.data.changedDragInfo[node?.data?.hierarchyId].dragged = true;
+            }
+        });
+        dragDropGrid._gridApi.redrawRows({
+            force: true,
+            rowNodes: [updatedNode]
+        });
+    }
+
+    async getClassificationById(id) {
+        let clonedContextData = ObjectUtils.cloneObject(this.contextData);
+        clonedContextData[ContextUtils.CONTEXT_TYPE_ITEM] = [
+            { type: this._selectedDomain?.manageModelName, attributeNames: '_ALL' }
+        ];
+        let request = DataRequestHelper.createEntityGetRequest(clonedContextData, true);
+        request.params.query.id = id;
+
+        let getRequest = DataObjectManager.createRequest('searchandget', request, '', {});
+        let getResponse = await DataObjectManager.initiateRequest(getRequest);
+        if (getResponse && getResponse.response && getResponse.response.status == 'success') {
+            let entity = getResponse.response?.content?.entities[0];
+            return entity;
+        }
+        return {};
+    }
+    async getClassificationByName(name) {
+        let clonedContextData = ObjectUtils.cloneObject(this.contextData);
+        clonedContextData[ContextUtils.CONTEXT_TYPE_ITEM] = [
+            { type: this._selectedDomain?.manageModelName, attributeNames: '_ALL' }
+        ];
+        let request = DataRequestHelper.createEntityGetRequest(clonedContextData, true);
+        request.params.query.name = name;
+        let _attributesCriterionObj = {};
+        _attributesCriterionObj[this._selectedDomain.classificationAttributeName] = {
+            exact: this._selectedSource.id,
+            type: '_STRING'
+        };
+        request.params.query.filters.attributesCriterion = [_attributesCriterionObj];
+
+        let getRequest = DataObjectManager.createRequest('searchandget', request, '', {});
+        let getResponse = await DataObjectManager.initiateRequest(getRequest);
+        if (getResponse && getResponse.response && getResponse.response.status == 'success') {
+            let entity = getResponse.response?.content?.entities[0];
+            return entity;
+        }
+        return {};
+    }
     moveToPath(newParentPath, node, allUpdatedNodes, issameGrid) {
         let oldPath = '';
         let fileName = '';
-        if (node?.data?.filePath) {
+        if (node.data.filePath) {
             oldPath = node.data.filePath;
             fileName = oldPath[oldPath.length - 1];
         } else {
+            //Not changing case of this as its internal attribute coming in on classification entity itself
             oldPath = node.data['externalnamepath']?.split('>>');
         }
         //fileName = oldPath[oldPath.length - 1];
@@ -1654,9 +2164,9 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
         data.filePath = newChildPath;
         node.data = data;
         if (issameGrid) {
-            node.data.hierarchyId = node.hierarchyId = node.id;
+            node.data.hierarchyId = node.data.hierarchyId = node.id;
         } else {
-            node.data.hierarchyId = node.hierarchyId = UniqueIdUtils.getRandomId();
+            node.data.hierarchyId = node.data.hierarchyId = UniqueIdUtils.getRandomId();
         }
         allUpdatedNodes.push(node.data);
         if (node.childrenAfterGroup) {
@@ -1665,44 +2175,6 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
             });
         }
     }
-
-    dndMultipleItems(sourceSelectedItems, targetPath, issameGrid, targetGrid) {
-        sourceSelectedItems.forEach(item => {
-            let sourceData = {};
-            sourceData.data = item;
-            if (!ObjectUtils.isEmpty(sourceData))
-                this.onMoveClick(targetPath, sourceData, false, targetGrid);
-        });
-    }
-
-    onMoveClick(newParentPath, sourceData, issameGrid, targetGrid) {
-        let updatedRows = [];
-        this.moveToPath(newParentPath, sourceData, updatedRows, issameGrid);
-        const bedrockGrid = targetGrid.shadowRoot.querySelector('bedrock-grid');
-        const pebbleGrid = bedrockGrid.shadowRoot.querySelector('pebble-grid');
-        pebbleGrid._gridApi.applyTransaction({
-            add: updatedRows
-        });
-        let updatedNode;
-        let hierarchyIds = updatedRows.map(item => item.hierarchyId);
-        pebbleGrid._gridApi.forEachNode(node => {
-            if (hierarchyIds.includes(node.data.hierarchyId)) {
-                updatedNode = node;
-                if (!node.data.changedDragInfo) {
-                    node.data.changedDragInfo = {};
-                }
-                if (!node.data.changedDragInfo[node.hierarchyId]) {
-                    node.data.changedDragInfo[node.hierarchyId] = {};
-                }
-                node.data.changedDragInfo[node.hierarchyId].dragged = true;
-            }
-        });
-        pebbleGrid._gridApi.redrawRows({
-            force: true,
-            rowNodes: [updatedNode]
-        });
-    }
-
     isSelectionParentOfTarget(selectedNode, targetNode) {
         let children = [...(selectedNode.childrenAfterGroup || [])];
 
@@ -1780,6 +2252,136 @@ class RockDragDropGrid extends MixinManager(LitElement).with(ComponentConfigBase
         });
         return inputData;
     }
+
+    /**
+     * Function to handle filter change event for lazy loaded source grid
+     */
+    _onSourceGridFilterChange(detail) {
+        //Ignore unrelated events
+        if (detail && detail.scopeId && detail.scopeId != this.scopeId) return;
+
+        let filterCriterion = {};
+        if (this.configType == 'source' && detail && this._entityDataGetReq && !ObjectUtils.isEmpty(this._dataSource)) {
+            for (let key in detail) {
+                let filter = {};
+                filter[key] = {
+                    contains: detail[key].filter + '*',
+                    type: '_STRING'
+                };
+                filterCriterion = { ...filterCriterion, ...filter };
+            }
+
+            let request = ObjectUtils.cloneObject(this._entityDataGetReq);
+            if (!ObjectUtils.isEmpty(filterCriterion)) {
+                if (!request.params.query.filters.attributesCriterion) {
+                    request.params.query.filters.attributesCriterion = [];
+                }
+                request.params.query.filters.attributesCriterion.push(filterCriterion);
+            }
+            this._dataSource.request = request;
+        }
+    }
+
+    /**
+     *   Function to remove the changedDragInfo
+     */
+    onRemoveTargetGridChangedInfo() {
+        if (this.dragDropGrid && this.dragDropGrid._gridApi) {
+            let rowModel = this.dragDropGrid._gridApi.getModel();
+            let rootNode = rowModel.getRootNode();
+            rootNode.allLeafChildren.forEach(function (node) {
+                if (node.data && node.data.changedDragInfo) {
+                    delete node.data.changedDragInfo;
+                }
+            });
+        }
+    }
+
+    /**
+     *   Function to show the blinker
+     */
+    showNotificationBlinker() {
+        let refreshButton = this.targetToolbarRefreshIcon;
+        if (refreshButton) {
+            refreshButton.title = this.localize('RfsBtnTit');
+
+            let refreshSvg;
+            let paperButton = refreshButton.shadowRoot.querySelector('paper-button');
+            if (paperButton) {
+                refreshSvg = paperButton.querySelector('pebble-icon')
+                    ? paperButton.querySelector('pebble-icon').shadowRoot.querySelector('svg')
+                    : undefined;
+            }
+
+            if (refreshSvg) {
+                let intervalCount = 0;
+                refreshSvg.style.fill = '';
+                clearInterval(this._refreshBlinkInterval);
+
+                this._refreshBlinkInterval = setInterval(() => {
+                    if (intervalCount == 6) {
+                        clearInterval(this._refreshBlinkInterval);
+                    }
+
+                    if (!ObjectUtils.isEmpty(refreshSvg.style.fill)) {
+                        refreshSvg.style.fill = '';
+                    } else {
+                        refreshSvg.style.fill = 'darkred';
+                    }
+
+                    intervalCount++;
+                }, 1000);
+            }
+        }
+    }
+
+    /**
+     *   Function to clear the blinker
+     */
+    _clearNotificationBlinker() {
+        clearInterval(this._refreshBlinkInterval);
+        let refreshButton = this.targetToolbarRefreshIcon;
+        if (refreshButton) {
+            refreshButton.title = this.localize('RfsTxt');
+            let refreshSvg;
+            let paperButton = refreshButton.shadowRoot.querySelector('paper-button');
+
+            if (paperButton) {
+                refreshSvg = paperButton.querySelector('pebble-icon')
+                    ? paperButton.querySelector('pebble-icon').shadowRoot.querySelector('svg')
+                    : undefined;
+            }
+
+            if (refreshSvg) {
+                refreshSvg.style.fill = '';
+            }
+        }
+    }
 }
 
 customElements.define('rock-drag-drop-grid', RockDragDropGrid);
+
+
+
+    // let mappedItems = entity?.data?.relationships?.ismappedto;
+    //                         if(!ObjectUtils.isEmpty(mappedItems)){
+    //                             let mappedIds = [];
+    //                             let mappedRows = [];
+    //                             mappedItems.forEach(item => mappedIds.push(item?.relTo?.id));
+
+    //                             const processMappedRows = () => {
+    //                                 const promises = mappedIds.map(async id => {
+    //                                     let obj = await this.getClassificationById(id);
+    //                                     let mappedRow = [];
+    //                                     if (obj) {
+    //                                         mappedRow = this.createHierarchicalDataForMappedItems(obj, filePathInString);
+    //                                     }
+    //                                     return mappedRow;
+    //                                 });
+
+    //                                 return Promise.all(promises);
+    //                             };
+
+    //                             processMappedRows().then(mappedRows => {
+    //                                 data = [...data, ...mappedRows];
+    //                             });
